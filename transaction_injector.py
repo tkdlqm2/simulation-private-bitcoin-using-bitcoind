@@ -77,10 +77,12 @@ if __name__ == "__main__":
     possible_tx_peer = []
     possible = possible_peer(bitcoin_cli_list, wallet_addresses)
     # assert block counts 100
-    f = open("/home/csrc/Desktop/python/txList.txt","w")
-    while(1):
-        target = get_target_peer(wallet_addresses)
-        f.write(make_tx(bitcoin_cli_list[target[0]],wallet_addresses[target[1]]))
-    f.close()
 
-
+    try:
+        f = open("/home/csrc/Desktop/python/txList.txt","w")
+        while(1):
+            target = get_target_peer(wallet_addresses)
+            f.write(make_tx(bitcoin_cli_list[target[0]],wallet_addresses[target[1]]))
+        f.close()
+    except:
+        print("\t\t Keyborad Interrupt about stopping bitcoind !! ")

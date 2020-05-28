@@ -54,18 +54,18 @@ def rpc_command_func(n):
         pass
 
 def rpc_command_list():
-    print("------------------------------------------------------------------------")
-    print("\t Input option number to command rpc")
-    print("\t If you want to clean bitcoind, press 0")
+    print("---------------------------------------------------------------------------------------")
+    print("\t\t Input option number to command rpc")
+    print("\t\t If you want to clean bitcoind, press 0")
     print()
-    print("\t 1. getblockchaininfo")
-    print("\t 2. getwalletinfo")
-    print("\t 3. Show Transaction hash List & gettransaction")
+    print("\t\t 1. getblockchaininfo")
+    print("\t\t 2. getwalletinfo")
+    print("\t\t 3. Show Transaction hash List & gettransaction")
     print()
-    print("\t 9. Other peer")
-    print("\t 0. Exit")
-    print("------------------------------------------------------------------------")
-    print("-->", end=" ")
+    print("\t\t 9. Other peer")
+    print("\t\t 0. Exit")
+    print("---------------------------------------------------------------------------------------")
+    print("\t-->", end=" ")
 
 if __name__ == '__main__':
     
@@ -79,12 +79,17 @@ if __name__ == '__main__':
     f.close()
 
     while(1):
-        print("------------------------------------------------------------------------")
-        print("\t Input peer port number to use bitcoin-cli")
-        print("\t If you want to clean bitcoind, press 0")
-        print("------------------------------------------------------------------------")
-        print("-->", end=" ")
-        peer_port = int(input())
+        print("---------------------------------------------------------------------------------------")
+        print("\t\t Input peer port number to use bitcoin-cli")
+        print("\t\t If you want to clean bitcoind, press 0")
+        print("---------------------------------------------------------------------------------------")
+        print("\t-->", end=" ")
+        try:
+            peer_port = int(input())
+        except:
+            print("\t\t\t Only input integer")
+            continue
+
         if peer_port == 0:
             clean_bitcoind()
             break
@@ -94,7 +99,12 @@ if __name__ == '__main__':
 
         while(1):
             rpc_command_list()
-            rpc_command = int(input())
+            try:
+                rpc_command = int(input())
+            except:
+                print("\t\t Only input integer")
+                continue
+
             if rpc_command == 9:
                 break
             elif rpc_command == 0:
@@ -107,4 +117,3 @@ if __name__ == '__main__':
 
         if EXIT_VALUE == 1:
             break
-

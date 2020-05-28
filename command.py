@@ -93,7 +93,8 @@ if __name__ == '__main__':
 
         bitcoin_cli_command = "python bitcoin_cli.py"    
         exec_shell_cmd_system(bitcoin_cli_command)
-
+        transaction_injector = "python transaction_injector.py"
+        exec_shell_cmd_system(transaction_injector)
 
     elif mode =='clean':
         exec_shell_cmd_system("rm -rf node*")

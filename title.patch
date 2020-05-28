@@ -1,0 +1,312 @@
+diff --git a/src/bitcoin-cli.cpp b/src/bitcoin-cli.cpp
+index cdaabd6fa..7f2d85492 100644
+--- a/src/bitcoin-cli.cpp
++++ b/src/bitcoin-cli.cpp
+@@ -37,6 +37,7 @@ static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
+ static const bool DEFAULT_NAMED=false;
+ static const int CONTINUE_EXECUTION=-1;
+ 
++
+ static void SetupCliArgs()
+ {
+     SetupHelpOptions(gArgs);
+diff --git a/src/chainparams.cpp b/src/chainparams.cpp
+index 799474fae..4fc952933 100644
+--- a/src/chainparams.cpp
++++ b/src/chainparams.cpp
+@@ -178,9 +178,13 @@ public:
+         consensus.BIP65Height = 581885; // 00000000007f6655f22f98e72ed80d8b06dc761d5da09df0fa1dc4be4f861eb6
+         consensus.BIP66Height = 330776; // 000000002104c8c45e99a8853285a3b592602a3ccde2b832481da85e9e4ba182
+         consensus.CSVHeight = 770112; // 00000000025e930139bac5c6c31a403776da130831ab85be56578f3fa75369bb
+-        consensus.SegwitHeight = 834624; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
++        consensus.SegwitHeight = 0; // 00000000002b980fcd729daaa248fd9316a5200e9b367f4ff2c42453e84201ca
+         consensus.MinBIP9WarningHeight = 836640; // segwit activation height + miner confirmation window
+-        consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
++        consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
++
++        // regtest default valule setting
++        // consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
++
+         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
+         consensus.nPowTargetSpacing = 10 * 60;
+         consensus.fPowAllowMinDifficultyBlocks = true;
+@@ -192,7 +196,7 @@ public:
+         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+ 
+         // The best chain should have at least this much work.
+-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001495c1d5a01e2af8a23");
++        consensus.nMinimumChainWork = uint256S("0x00");
+ 
+         // By default assume that the signatures in ancestors of this block are valid.
+         consensus.defaultAssumeValid = uint256S("0x000000000000056c49030c174179b52a928c870e6e8a822c75973b7970cfbd01"); // 1692000
+@@ -206,9 +210,15 @@ public:
+         m_assumed_blockchain_size = 40;
+         m_assumed_chain_state_size = 2;
+ 
+-        genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, 50 * COIN);
++        // regtest default valule setting
++        // genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 1, 50 * COIN);
++        // consensus.hashGenesisBlock = genesis.GetHash();
++        // assert(consensus.hashGenesisBlock == uint256S("0x0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"));
++        // assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
++
++        genesis = CreateGenesisBlock(1231006505, 2085223420, 0x1e0fffff, 1, 50 * COIN);
+         consensus.hashGenesisBlock = genesis.GetHash();
+-        assert(consensus.hashGenesisBlock == uint256S("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"));
++        assert(consensus.hashGenesisBlock == uint256S("0x000006d66f3cd0f0e2bf5ff0f3aa66bf4deec8eff96b7bc13fc7622532b10ad8"));
+         assert(genesis.hashMerkleRoot == uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+ 
+         vFixedSeeds.clear();
+diff --git a/src/init.cpp b/src/init.cpp
+index 3b97ba08d..80565177f 100644
+--- a/src/init.cpp
++++ b/src/init.cpp
+@@ -574,6 +574,11 @@ void SetupServerArgs(NodeContext& node)
+     gArgs.AddArg("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::RPC);
+     gArgs.AddArg("-server", "Accept command line and JSON-RPC commands", ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
+ 
++    // made by hongjoon
++    // target : Insert logic about mining using bitcoind in bitcoin ver 0.11
++    // gArgs.AddArg("-gen", "Start mining using Bitcoind", ArgsManager::ALLOW_ANY, OptionsCategory::);
++
++
+ #if HAVE_DECL_DAEMON
+     gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+ #else
+diff --git a/src/net_processing.cpp b/src/net_processing.cpp
+index 7e9bb2f27..4f5db9c15 100644
+--- a/src/net_processing.cpp
++++ b/src/net_processing.cpp
+@@ -1594,7 +1594,7 @@ void static ProcessGetBlockData(CNode* pfrom, const CChainParams& chainparams, c
+             }
+         }
+ 
+-        // Trigger the peer node to send a getblocks request for the next batch of inventory
++        // Trigger the peer node to send a  request for the next batch of inventory
+         if (inv.hash == pfrom->hashContinue)
+         {
+             // Bypass PushInventory, this must send even if redundant,
+diff --git a/src/pow.cpp b/src/pow.cpp
+index 1414d3756..cdbac8d9a 100644
+--- a/src/pow.cpp
++++ b/src/pow.cpp
+@@ -84,8 +84,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
+         return false;
+ 
+     // Check proof of work matches claimed amount
++    #include <iostream>
+     if (UintToArith256(hash) > bnTarget)
+         return false;
+ 
++    //std::cout<<UintToArith256(hash).ToString()<<":"<<bnTarget.ToString()<<std::endl;
+     return true;
+ }
+diff --git a/src/rpc/mining.cpp b/src/rpc/mining.cpp
+index 8e752e5e8..511a0ed90 100644
+--- a/src/rpc/mining.cpp
++++ b/src/rpc/mining.cpp
+@@ -33,9 +33,11 @@
+ #include <validationinterface.h>
+ #include <versionbitsinfo.h>
+ #include <warnings.h>
++#include <boost/thread.hpp>
+ 
+ #include <memory>
+ #include <stdint.h>
++#include <iostream>
+ 
+ /**
+  * Return average network hashes per second based on the last 'lookup' blocks,
+@@ -109,20 +111,24 @@ static bool GenerateBlock(CBlock& block, uint64_t& max_tries, unsigned int& extr
+         LOCK(cs_main);
+         IncrementExtraNonce(&block, ::ChainActive().Tip(), extra_nonce);
+     }
+-
+     CChainParams chainparams(Params());
++    
+ 
+-    while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus()) && !ShutdownRequested()) {
++   while (max_tries > 0 && block.nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus()) && !ShutdownRequested()) {
+         ++block.nNonce;
+         --max_tries;
+     }
++
+     if (max_tries == 0 || ShutdownRequested()) {
+         return false;
+     }
++   
++    
+     if (block.nNonce == std::numeric_limits<uint32_t>::max()) {
+         return true;
+     }
+ 
++    std::cout<<"Block Accepted:"<<block.GetHash().ToString()<<std::endl;
+     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
+     if (!ProcessNewBlock(chainparams, shared_pblock, true, nullptr))
+         throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+@@ -131,6 +137,77 @@ static bool GenerateBlock(CBlock& block, uint64_t& max_tries, unsigned int& extr
+     return true;
+ }
+ 
++void static generateBlocks2(const JSONRPCRequest& request)
++{
++    static boost::thread_group* minerThreads = NULL;
++
++            RPCHelpMan{"generatetoaddress",
++                "\nMine blocks immediately to a specified address (before the RPC call returns)\n",
++                {
++                    {"nblocks", RPCArg::Type::NUM, RPCArg::Optional::NO, "How many blocks are generated immediately."},
++                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to send the newly generated bitcoin to."},
++                    {"maxtries", RPCArg::Type::NUM, /* default */ "1000000", "How many iterations to try."},
++                },
++                RPCResult{
++                    RPCResult::Type::ARR, "", "hashes of blocks generated",
++                    {
++                        {RPCResult::Type::STR_HEX, "", "blockhash"},
++                    }},
++                RPCExamples{
++            "\nGenerate 11 blocks to myaddress\n"
++            + HelpExampleCli("generatetoaddress", "11 \"myaddress\"")
++            + "If you are running the bitcoin core wallet, you can get a new address to send the newly generated bitcoin to with:\n"
++            + HelpExampleCli("getnewaddress", "")
++                },
++            }.Check(request);
++
++    int nGenerate = request.params[0].get_int();
++    uint64_t nMaxTries = 10000000;
++    if (!request.params[2].isNull()) {
++        nMaxTries = request.params[2].get_int();
++    }
++
++    CTxDestination destination = DecodeDestination(request.params[1].get_str());
++    if (!IsValidDestination(destination)) {
++        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
++    }
++
++    const CTxMemPool& mempool = EnsureMemPool();
++
++    CScript coinbase_script = GetScriptForDestination(destination);
++
++    int nHeightEnd = 0;
++    int nHeight = 0;
++    unsigned int nExtraNonce = 0;
++    while(true){
++        {   // Don't keep cs_main locked
++            LOCK(cs_main);
++            nHeight = ::ChainActive().Height();
++            nHeightEnd = nHeight+nGenerate;
++        }
++        UniValue blockHashes(UniValue::VARR);
++        uint64_t nTries = nMaxTries;
++        while (nHeight < nHeightEnd && !ShutdownRequested())
++        {
++            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(mempool, Params()).CreateNewBlock(coinbase_script));
++
++            if (!pblocktemplate.get())
++                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
++            CBlock *pblock = &pblocktemplate->block;
++
++            uint256 block_hash;
++            if (!GenerateBlock(*pblock, nTries, nExtraNonce, block_hash)) {
++                break;
++            }
++
++            if (!block_hash.IsNull()) {
++                ++nHeight;
++                //std::cout<<block_hash.ToString()<<std::endl;
++            }
++        }
++    }
++}
++
+ static UniValue generateBlocks(const CTxMemPool& mempool, const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
+ {
+     int nHeightEnd = 0;
+@@ -232,8 +309,12 @@ static UniValue generatetodescriptor(const JSONRPCRequest& request)
+     return generateBlocks(mempool, coinbase_script, num_blocks, max_tries);
+ }
+ 
++// static UniValue generatetoaddress(const JSONRPCRequest& request)
++
+ static UniValue generatetoaddress(const JSONRPCRequest& request)
+-{
++{    
++    static boost::thread_group* minerThreads = NULL;
++
+             RPCHelpMan{"generatetoaddress",
+                 "\nMine blocks immediately to a specified address (before the RPC call returns)\n",
+                 {
+@@ -269,9 +350,15 @@ static UniValue generatetoaddress(const JSONRPCRequest& request)
+ 
+     CScript coinbase_script = GetScriptForDestination(destination);
+ 
++    minerThreads = new boost::thread_group();
++    
++    for (int i = 0; i < 1; i++){
++        minerThreads->create_thread(boost::bind(&generateBlocks2,request));
++    }
+     return generateBlocks(mempool, coinbase_script, nGenerate, nMaxTries);
+ }
+ 
++
+ static UniValue generateblock(const JSONRPCRequest& request)
+ {
+     RPCHelpMan{"generateblock",
+diff --git a/src/test/util/mining.h b/src/test/util/mining.h
+index 5f250fffe..7380a9c3b 100644
+--- a/src/test/util/mining.h
++++ b/src/test/util/mining.h
+@@ -21,5 +21,4 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext&, const CScript& coinbase
+ 
+ /** RPC-like helper function, returns the generated coin */
+ CTxIn generatetoaddress(const NodeContext&, const std::string& address);
+-
+ #endif // BITCOIN_TEST_UTIL_MINING_H
+diff --git a/src/util/system.cpp b/src/util/system.cpp
+index 2013b416d..28d09c84c 100644
+--- a/src/util/system.cpp
++++ b/src/util/system.cpp
+@@ -1078,6 +1078,43 @@ void runCommand(const std::string& strCommand)
+ }
+ #endif
+ 
++void CreateNewBlock()
++{
++#ifdef HAVE_MALLOPT_ARENA_MAX
++    // glibc-specific: On 32-bit systems set the number of arenas to 1.
++    // By default, since glibc 2.10, the C library will create up to two heap
++    // arenas per core. This is known to cause excessive virtual address space
++    // usage in our usage. Work around it by setting the maximum number of
++    // arenas to 1.
++    if (sizeof(void*) == 4) {
++        mallopt(M_ARENA_MAX, 1);
++    }
++#endif
++    // On most POSIX systems (e.g. Linux, but not BSD) the environment's locale
++    // may be invalid, in which case the "C.UTF-8" locale is used as fallback.
++#if !defined(WIN32) && !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
++    try {
++        std::locale(""); // Raises a runtime error if current locale is invalid
++    } catch (const std::runtime_error&) {
++        setenv("LC_ALL", "C.UTF-8", 1);
++    }
++#elif defined(WIN32)
++    // Set the default input/output charset is utf-8
++    SetConsoleCP(CP_UTF8);
++    SetConsoleOutputCP(CP_UTF8);
++#endif
++    // The path locale is lazy initialized and to avoid deinitialization errors
++    // in multithreading environments, it is set explicitly by the main thread.
++    // A dummy locale is used to extract the internal default locale, used by
++    // fs::path, which is then used to explicitly imbue the path.
++    std::locale loc = fs::path::imbue(std::locale::classic());
++#ifndef WIN32
++    fs::path::imbue(loc);
++#else
++    fs::path::imbue(std::locale(loc, new std::codecvt_utf8_utf16<wchar_t>()));
++#endif
++}
++
+ void SetupEnvironment()
+ {
+ #ifdef HAVE_MALLOPT_ARENA_MAX
